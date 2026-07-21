@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#0d1b2a" />
+    <meta name="description" content="An interactive 3D model of the city of Bremen, Germany — buildings, parks, the Weser river and streets, rendered from real OpenStreetMap data." />
+    <title>Bremen 3D — Interactive city model</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <!-- Loading overlay -->
+    <div id="loader" class="loader">
+      <div class="loader__inner">
+        <div class="loader__key">B<span>3D</span></div>
+        <h1 class="loader__title">Bremen&nbsp;3D</h1>
+        <p class="loader__sub">Building an interactive model of the Hanseatic city</p>
+        <div class="loader__bar"><div id="loader-fill" class="loader__fill"></div></div>
+        <p id="loader-status" class="loader__status">Starting up…</p>
+      </div>
+    </div>
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="topbar__brand">
+        <span class="topbar__mark">B3D</span>
+        <div class="topbar__titles">
+          <strong>Bremen&nbsp;3D</strong>
+          <span id="datasource" class="topbar__source">loading…</span>
+        </div>
+      </div>
+      <div class="topbar__stats" id="stats"></div>
+    </header>
+
+    <!-- Control panel -->
+    <aside class="panel" id="panel">
+      <button class="panel__toggle" id="panel-toggle" aria-label="Toggle panel">☰</button>
+      <div class="panel__body">
+        <section class="panel__section">
+          <h2 class="panel__h">Viewpoints</h2>
+          <div class="chips" id="presets"></div>
+        </section>
+
+        <section class="panel__section">
+          <h2 class="panel__h">Layers</h2>
+          <div class="toggles" id="layer-toggles"></div>
+        </section>
+
+        <section class="panel__section">
+          <h2 class="panel__h">Time of day <span class="panel__val" id="time-val">13:00</span></h2>
+          <input type="range" id="time" min="5" max="21" step="0.1" value="13" />
+        </section>
+
+        <section class="panel__section">
+          <h2 class="panel__h">Display</h2>
+          <div class="toggles">
+            <label class="switch"><input type="checkbox" id="opt-shadows" checked /><span>Shadows</span></label>
+            <label class="switch"><input type="checkbox" id="opt-fog" checked /><span>Atmospheric fog</span></label>
+            <label class="switch"><input type="checkbox" id="opt-wire" /><span>Wireframe</span></label>
+            <label class="switch"><input type="checkbox" id="opt-rotate" /><span>Auto-orbit</span></label>
+          </div>
+        </section>
+
+        <section class="panel__section">
+          <button class="btn" id="reload">Reload live data</button>
+          <p class="panel__hint" id="area-note"></p>
+        </section>
+      </div>
+    </aside>
+
+    <!-- Selected feature card -->
+    <div class="infocard" id="infocard" hidden>
+      <button class="infocard__close" id="infocard-close" aria-label="Close">×</button>
+      <h3 id="infocard-name">—</h3>
+      <dl id="infocard-list"></dl>
+    </div>
+
+    <!-- Help hint -->
+    <div class="hint" id="hint">
+      <strong>Drag</strong> to orbit · <strong>right-drag</strong> to pan · <strong>scroll</strong> to zoom · <strong>click</strong> a building
+    </div>
+
+    <div class="attribution">
+      Data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · rendered with three.js
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
