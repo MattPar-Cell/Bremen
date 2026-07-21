@@ -33,6 +33,8 @@ export class UI {
   _buildAreas(areas, currentAreaId) {
     const host = document.getElementById('areas');
     if (!host) return;
+    const count = document.getElementById('area-count');
+    if (count) count.textContent = `${areas.length} areas`;
     this._areaButtons = {};
     for (const a of areas) {
       const b = document.createElement('button');

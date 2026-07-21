@@ -18,12 +18,16 @@ export const Loader = {
     if (this.fill) this.fill.style.width = Math.round(fraction * 100) + '%';
   },
 
-  async hide() {
+  // `isCurrent` lets a caller abort the cosmetic fade if a newer load has
+  // started in the meantime, so it can't hide an overlay that was just re-shown.
+  async hide(isCurrent = () => true) {
     if (!this.el) return;
     this.setProgress(1);
     await wait(150);
+    if (!isCurrent()) return;
     this.el.classList.add('hidden');
     await wait(600);
+    if (!isCurrent()) return;
     this.el.style.display = 'none';
   },
 

@@ -24,6 +24,7 @@ const ui = new UI(viewer, {
 
 let currentAreaId = DEFAULT_AREA_ID;
 let loading = false;
+let loadSeq = 0;
 
 const emptyFeatures = () => ({ buildings: [], areas: [], roads: [], waterways: [], trees: [] });
 
@@ -37,6 +38,7 @@ function areaKm(area) {
 async function loadArea(areaId, force) {
   if (loading) return;
   loading = true;
+  const seq = ++loadSeq;
 
   currentAreaId = areaId;
   const area = getArea(areaId);
@@ -96,9 +98,12 @@ async function loadArea(areaId, force) {
 
   Loader.setProgress(0.92);
   await nextFrame();
-  await Loader.hide();
+
+  // The scene is built and interactive now — free the guard before the purely
+  // cosmetic loader fade so rapid borough switches feel responsive.
   ui.setReloadEnabled(true);
   loading = false;
+  await Loader.hide(() => seq === loadSeq);
 }
 
 function applySource(source, area) {

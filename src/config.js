@@ -1,19 +1,36 @@
-// Generic camera viewpoints usable for any area (positions/targets in local
-// metres, relative to the area's own centre — see geo/projection).
-const GENERIC_PRESETS = [
-  { name: 'Overview', target: [0, 0, 0], pos: [520, 600, 700] },
-  { name: 'Close-up', target: [0, 0, 0], pos: [150, 150, 210] },
-  { name: 'Aerial', target: [0, 0, 0], pos: [40, 1450, 60] },
-];
+// Build a bounding box (south/west/north/east) around a centre, given a
+// half-size in kilometres.
+function box(lat, lon, halfKm = 1.35) {
+  const dLat = halfKm / 111.32;
+  const dLon = halfKm / (111.32 * Math.cos((lat * Math.PI) / 180));
+  return { south: lat - dLat, west: lon - dLon, north: lat + dLat, east: lon + dLon };
+}
 
-// The selectable areas. Each is centred on a real point and loads its own
-// bounding box from OpenStreetMap. The city centre keeps its landmark
-// viewpoints; the two boroughs use generic ones.
+// Generic camera viewpoints, scaled to the area's size (positions/targets in
+// local metres, relative to the area's own centre — see geo/projection).
+function genericPresets(halfKm = 1.35) {
+  const d = halfKm * 1000;
+  return [
+    { name: 'Overview', target: [0, 0, 0], pos: [d * 0.4, d * 0.5, d * 0.62] },
+    { name: 'Close-up', target: [0, 0, 0], pos: [140, 150, 205] },
+    { name: 'Aerial', target: [0, 0, 0], pos: [30, d * 1.15, 45] },
+  ];
+}
+
+// Compact constructor for a borough with generic viewpoints.
+function borough(id, name, blurb, lat, lon, halfKm = 1.35) {
+  return { id, name, blurb, center: { lat, lon }, bbox: box(lat, lon, halfKm), presets: genericPresets(halfKm) };
+}
+
+// The 23 official Stadtteile (boroughs) of Bremen. Each is centred on a real
+// point and loads its own bounding box from OpenStreetMap. The city centre
+// (Mitte) keeps its hand-tuned landmark viewpoints; the rest use generic ones.
+// Coordinates come from public sources and are anchored on each borough's core.
 export const AREAS = [
   {
     id: 'altstadt',
     name: 'City centre',
-    blurb: 'Altstadt · Marktplatz · Weser',
+    blurb: 'Mitte · Altstadt · Marktplatz',
     // Marktplatz, in front of the Town Hall and the Roland statue.
     center: { lat: 53.07583, lon: 8.80717 },
     bbox: { south: 53.0650, west: 8.7860, north: 53.0885, east: 8.8280 },
@@ -27,24 +44,45 @@ export const AREAS = [
       { name: 'Aerial', target: [0, 0, 0], pos: [40, 1500, 60] },
     ],
   },
+  // Right bank — inner east
+  borough('oestliche-vorstadt', 'Östliche Vorstadt', 'Das Viertel · Ostertor & Steintor', 53.0702, 8.8410, 1.2),
+  borough('schwachhausen', 'Schwachhausen', 'Grand avenues and villas', 53.0925, 8.8400, 1.5),
+  borough('findorff', 'Findorff', 'Beside the Bürgerpark', 53.0900, 8.8050, 1.3),
+  borough('vahr', 'Vahr', '1950s modernist estates', 53.0787, 8.8776, 1.35),
+  {
+    id: 'horn',
+    name: 'Horn-Lehe',
+    blurb: 'Rhododendron-Park & the university',
+    center: { lat: 53.0935, lon: 8.8770 },
+    bbox: { south: 53.0820, west: 8.8575, north: 53.1050, east: 8.8965 },
+    presets: genericPresets(1.35),
+  },
   {
     id: 'oberneuland',
     name: 'Oberneuland',
-    blurb: 'Leafy eastern borough · villas & ponds',
-    // Around the Oberneulander Landstraße / village core.
+    blurb: 'Leafy villas and ponds',
     center: { lat: 53.0899, lon: 8.9369 },
     bbox: { south: 53.0784, west: 8.9174, north: 53.1014, east: 8.9564 },
-    presets: GENERIC_PRESETS,
+    presets: genericPresets(1.35),
   },
-  {
-    id: 'horn',
-    name: 'Horn',
-    blurb: 'Horn-Lehe · Rhododendronpark · university',
-    // Horner Heerstraße corridor, just west of the Rhododendron-Park.
-    center: { lat: 53.0935, lon: 8.8770 },
-    bbox: { south: 53.0820, west: 8.8575, north: 53.1050, east: 8.8965 },
-    presets: GENERIC_PRESETS,
-  },
+  borough('borgfeld', 'Borgfeld', 'Village edge by the Wümme', 53.1261, 8.9069, 1.5),
+  borough('osterholz', 'Osterholz', 'Weserpark & Tenever', 53.0660, 8.9350, 1.6),
+  borough('hemelingen', 'Hemelingen', 'Industry along the Weser', 53.0560, 8.9020, 1.6),
+  // Right bank — north-west
+  borough('walle', 'Walle', 'Überseestadt & Waller Heerstraße', 53.0985, 8.7850, 1.5),
+  borough('groepelingen', 'Gröpelingen', 'Port and shipyard heritage', 53.1261, 8.7464, 1.5),
+  borough('haefen', 'Häfen', 'The working harbours', 53.1170, 8.7560, 1.7),
+  borough('burglesum', 'Burglesum', 'Lesum & the Weser confluence', 53.1611, 8.6917, 1.7),
+  borough('vegesack', 'Vegesack', 'Historic harbour town, north', 53.1792, 8.6222, 1.6),
+  borough('blumenthal', 'Blumenthal', 'The northern tip', 53.1818, 8.5726, 1.7),
+  borough('blockland', 'Blockland', 'Rural marsh and meadows', 53.1440, 8.8060, 1.8),
+  // Left bank — south and west
+  borough('neustadt', 'Neustadt', 'Left bank of the Weser', 53.0700, 8.7970, 1.4),
+  borough('obervieland', 'Obervieland', 'Kattenturm · Arsten · Habenhausen', 53.0450, 8.8220, 1.6),
+  borough('huchting', 'Huchting', 'South-west, by the Ochtum', 53.0520, 8.7423, 1.6),
+  borough('woltmershausen', 'Woltmershausen', 'Weser peninsula · Rablinghausen', 53.0800, 8.7700, 1.5),
+  borough('seehausen', 'Seehausen', 'Rural west, by the port', 53.1080, 8.6980, 1.6),
+  borough('strom', 'Strom', 'Dike village on the Weser', 53.1030, 8.7150, 1.5),
 ];
 
 export const DEFAULT_AREA_ID = 'altstadt';

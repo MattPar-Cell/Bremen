@@ -14,9 +14,10 @@ Wallanlagen green ring, streets and railways, and thousands of trees.
 
 ## Features
 
-- **Switch between areas of Bremen** — load the historic **City centre**
-  (Altstadt) or the eastern boroughs of **Oberneuland** and **Horn**, each
-  fetched as its own patch of real map data.
+- **All 23 boroughs of Bremen** — switch between every official *Stadtteil*,
+  from the historic **City centre** (Mitte) to **Schwachhausen**, **Neustadt**,
+  **Vegesack**, **Blumenthal**, **Oberneuland**, **Horn-Lehe** and the rest.
+  Each is fetched as its own patch of real map data and cached separately.
 - **Real geometry from OpenStreetMap** — buildings are extruded to their tagged
   `height` / `building:levels`, or to sensible defaults per building type, and
   tinted in Bremen's brick-and-sandstone palette.
