@@ -14,6 +14,9 @@ Wallanlagen green ring, streets and railways, and thousands of trees.
 
 ## Features
 
+- **Switch between areas of Bremen** — load the historic **City centre**
+  (Altstadt) or the eastern boroughs of **Oberneuland** and **Horn**, each
+  fetched as its own patch of real map data.
 - **Real geometry from OpenStreetMap** — buildings are extruded to their tagged
   `height` / `building:levels`, or to sensible defaults per building type, and
   tinted in Bremen's brick-and-sandstone palette.
@@ -91,11 +94,25 @@ fallback are both turned into the same typed feature set
 (`{ buildings, areas, roads, waterways, trees }`) and fed through the identical
 builders.
 
-### Rendering another city or area
+### Areas and adding your own
 
-Everything is driven by `src/config.js`. Point `CENTER` at your city and set the
-`BBOX` you want to load; optionally adjust the `PRESETS` viewpoints. The larger
-the bounding box, the more the first download and render will cost.
+The selectable areas live in the `AREAS` array in `src/config.js`. Each entry is
+just a centre, a bounding box and a list of camera viewpoints:
+
+```js
+{
+  id: 'oberneuland',
+  name: 'Oberneuland',
+  center: { lat: 53.0899, lon: 8.9369 },
+  bbox: { south: 53.0784, west: 8.9174, north: 53.1014, east: 8.9564 },
+  presets: GENERIC_PRESETS,
+}
+```
+
+Add an object to load any other neighbourhood (or a different city entirely).
+The larger the bounding box, the more the first download and render will cost.
+Switching areas re-centres the projection and reloads that area's data through
+the same pipeline; each area is cached separately in the browser.
 
 ## Tech
 

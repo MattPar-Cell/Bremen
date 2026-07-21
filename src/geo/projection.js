@@ -1,17 +1,26 @@
-import { CENTER } from '../config.js';
+import { DEFAULT_CENTER } from '../config.js';
 
-// Simple equirectangular projection centred on CENTER. Over a city-sized area
-// (a few km) the distortion is negligible, and it keeps the maths trivial:
+// Simple equirectangular projection centred on a chosen point. Over a city-sized
+// area (a few km) the distortion is negligible, and it keeps the maths trivial:
 // one degree of latitude is ~111.32 km everywhere; one degree of longitude is
-// that scaled by cos(latitude).
+// that scaled by cos(latitude). The centre is mutable so we can re-project the
+// world around a different borough at runtime.
 const M_PER_DEG_LAT = 111320;
-const M_PER_DEG_LON = 111320 * Math.cos((CENTER.lat * Math.PI) / 180);
+
+let center = { ...DEFAULT_CENTER };
+let mPerDegLon = 111320 * Math.cos((center.lat * Math.PI) / 180);
+
+// Re-centre the projection (call before building a newly loaded area).
+export function setProjectionCenter({ lat, lon }) {
+  center = { lat, lon };
+  mPerDegLon = 111320 * Math.cos((lat * Math.PI) / 180);
+}
 
 // Returns [x, z] in metres, with +x = east and +z = south (so north is -z,
 // i.e. "up" on a conventional map when looking down the +y axis).
 export function project(lon, lat) {
-  const x = (lon - CENTER.lon) * M_PER_DEG_LON;
-  const z = -(lat - CENTER.lat) * M_PER_DEG_LAT;
+  const x = (lon - center.lon) * mPerDegLon;
+  const z = -(lat - center.lat) * M_PER_DEG_LAT;
   return [x, z];
 }
 
@@ -20,8 +29,8 @@ export function project(lon, lat) {
 // it flows through exactly the same parsing/building path as live OSM data.
 export function unproject(x, z) {
   return {
-    lon: CENTER.lon + x / M_PER_DEG_LON,
-    lat: CENTER.lat - z / M_PER_DEG_LAT,
+    lon: center.lon + x / mPerDegLon,
+    lat: center.lat - z / M_PER_DEG_LAT,
   };
 }
 

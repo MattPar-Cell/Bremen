@@ -118,6 +118,14 @@ export class Viewer {
   }
 
   // ---- camera moves ----------------------------------------------------
+  // Snap the camera instantly (used when the world re-centres on a new area).
+  setView(pos, target) {
+    this._fly = null;
+    this.camera.position.set(...pos);
+    this.controls.target.set(...target);
+    this.controls.update();
+  }
+
   flyTo(pos, target, dur = 1.1) {
     this._fly = {
       fromPos: this.camera.position.clone(),

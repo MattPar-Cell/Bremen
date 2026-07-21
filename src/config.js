@@ -1,17 +1,60 @@
-// Central geographic reference for the model: Bremen Marktplatz, in front of
-// the Town Hall (Rathaus) and the Roland statue — the historic heart of the city.
-export const CENTER = { lat: 53.07583, lon: 8.80717 };
+// Generic camera viewpoints usable for any area (positions/targets in local
+// metres, relative to the area's own centre — see geo/projection).
+const GENERIC_PRESETS = [
+  { name: 'Overview', target: [0, 0, 0], pos: [520, 600, 700] },
+  { name: 'Close-up', target: [0, 0, 0], pos: [150, 150, 210] },
+  { name: 'Aerial', target: [0, 0, 0], pos: [40, 1450, 60] },
+];
 
-// Bounding box of the area we load from OpenStreetMap (south, west, north, east).
-// Centred on the Marktplatz and sized (~2.6 x 2.8 km) to cover the Altstadt,
-// the Weser riverfront, the Schnoor, the southern Bürgerpark and the edge of
-// the Neustadt across the river, while keeping the first live download quick.
-export const BBOX = {
-  south: 53.0650,
-  west: 8.7860,
-  north: 53.0885,
-  east: 8.8280,
-};
+// The selectable areas. Each is centred on a real point and loads its own
+// bounding box from OpenStreetMap. The city centre keeps its landmark
+// viewpoints; the two boroughs use generic ones.
+export const AREAS = [
+  {
+    id: 'altstadt',
+    name: 'City centre',
+    blurb: 'Altstadt · Marktplatz · Weser',
+    // Marktplatz, in front of the Town Hall and the Roland statue.
+    center: { lat: 53.07583, lon: 8.80717 },
+    bbox: { south: 53.0650, west: 8.7860, north: 53.0885, east: 8.8280 },
+    presets: [
+      { name: 'Overview', target: [0, 0, 0], pos: [520, 620, 720] },
+      { name: 'Marktplatz', target: [0, 0, 0], pos: [90, 120, 150] },
+      { name: 'Weser river', target: [-60, 0, 320], pos: [-60, 150, 640] },
+      { name: 'Cathedral', target: [70, 20, 40], pos: [180, 130, 200] },
+      { name: 'Bürgerpark', target: [-350, 0, -1050], pos: [-350, 260, -560] },
+      { name: 'Schnoor', target: [230, 0, 210], pos: [320, 90, 380] },
+      { name: 'Aerial', target: [0, 0, 0], pos: [40, 1500, 60] },
+    ],
+  },
+  {
+    id: 'oberneuland',
+    name: 'Oberneuland',
+    blurb: 'Leafy eastern borough · villas & ponds',
+    // Around the Oberneulander Landstraße / village core.
+    center: { lat: 53.0899, lon: 8.9369 },
+    bbox: { south: 53.0784, west: 8.9174, north: 53.1014, east: 8.9564 },
+    presets: GENERIC_PRESETS,
+  },
+  {
+    id: 'horn',
+    name: 'Horn',
+    blurb: 'Horn-Lehe · Rhododendronpark · university',
+    // Horner Heerstraße corridor, just west of the Rhododendron-Park.
+    center: { lat: 53.0935, lon: 8.8770 },
+    bbox: { south: 53.0820, west: 8.8575, north: 53.1050, east: 8.8965 },
+    presets: GENERIC_PRESETS,
+  },
+];
+
+export const DEFAULT_AREA_ID = 'altstadt';
+
+export function getArea(id) {
+  return AREAS.find((a) => a.id === id) || AREAS[0];
+}
+
+// Fallback centre used to initialise the projection before an area is chosen.
+export const DEFAULT_CENTER = AREAS[0].center;
 
 // Public Overpass API endpoints. Tried in order; the first that answers wins.
 export const OVERPASS_ENDPOINTS = [
@@ -21,8 +64,8 @@ export const OVERPASS_ENDPOINTS = [
   'https://overpass.private.coffee/api/interpreter',
 ];
 
-// Cache key + how long a cached download is considered fresh (7 days).
-export const CACHE_KEY = 'bremen3d.osm.v2';
+// Cache key prefix (per area) + how long a cached download stays fresh (7 days).
+export const CACHE_PREFIX = 'bremen3d.osm.v3.';
 export const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Colour palette for the different kinds of geometry.
@@ -87,15 +130,3 @@ export const DEFAULT_HEIGHTS = {
   roof: 5,
   _default: 12,
 };
-
-// Named camera viewpoints. Positions/targets are in local metres (see geo/projection).
-// They are refined against CENTER so they line up with the real locations.
-export const PRESETS = [
-  { name: 'Overview', target: [0, 0, 0], pos: [520, 620, 720] },
-  { name: 'Marktplatz', target: [0, 0, 0], pos: [90, 120, 150] },
-  { name: 'Weser river', target: [-60, 0, 320], pos: [-60, 150, 640] },
-  { name: 'Cathedral', target: [70, 20, 40], pos: [180, 130, 200] },
-  { name: 'Bürgerpark', target: [-350, 0, -1050], pos: [-350, 260, -560] },
-  { name: 'Schnoor', target: [230, 0, 210], pos: [320, 90, 380] },
-  { name: 'Aerial', target: [0, 0, 0], pos: [40, 1500, 60] },
-];

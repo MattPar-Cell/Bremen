@@ -5,7 +5,8 @@ import { Loader, nextFrame } from './ui/Loader.js';
 import { loadOSM, parseElements } from './geo/overpass.js';
 import { buildFallback } from './geo/fallbackData.js';
 import { buildCity } from './build/CityBuilder.js';
-import { BBOX } from './config.js';
+import { setProjectionCenter } from './geo/projection.js';
+import { AREAS, DEFAULT_AREA_ID, getArea } from './config.js';
 
 Loader.init();
 
@@ -14,28 +15,48 @@ const viewer = new Viewer(canvas);
 
 const picker = new Picker(viewer, (feature) => ui.showFeature(feature));
 const ui = new UI(viewer, {
-  onReload: () => loadCity(true),
+  onReload: () => loadArea(currentAreaId, true),
   onInfoClose: () => picker.clear(),
+  onAreaChange: (id) => loadArea(id, false),
+  areas: AREAS,
+  currentAreaId: DEFAULT_AREA_ID,
 });
 
-const areaKm =
-  ((BBOX.north - BBOX.south) * 111.32).toFixed(1) +
-  ' × ' +
-  ((BBOX.east - BBOX.west) * 111.32 * Math.cos((BBOX.south * Math.PI) / 180)).toFixed(1) +
-  ' km';
+let currentAreaId = DEFAULT_AREA_ID;
+let loading = false;
 
-async function loadCity(force) {
+const emptyFeatures = () => ({ buildings: [], areas: [], roads: [], waterways: [], trees: [] });
+
+function areaKm(area) {
+  const b = area.bbox;
+  const ns = ((b.north - b.south) * 111.32).toFixed(1);
+  const ew = ((b.east - b.west) * 111.32 * Math.cos((b.south * Math.PI) / 180)).toFixed(1);
+  return `${ns} × ${ew} km`;
+}
+
+async function loadArea(areaId, force) {
+  if (loading) return;
+  loading = true;
+
+  currentAreaId = areaId;
+  const area = getArea(areaId);
+  setProjectionCenter(area.center);
+
+  ui.setActiveArea(areaId);
+  ui.setPresets(area.presets);
   ui.setReloadEnabled(false);
   picker.clear();
   ui.hideFeature();
   Loader.show();
+  Loader.setStatus(`Loading ${area.name}…`);
 
   let features;
   let source;
   try {
-    Loader.setStatus('Contacting OpenStreetMap…');
+    Loader.setStatus(`Contacting OpenStreetMap for ${area.name}…`);
     Loader.setProgress(0.12);
     const { elements, source: src } = await loadOSM({
+      area,
       force,
       onStatus: (s) => Loader.setStatus(s),
     });
@@ -45,15 +66,20 @@ async function loadCity(force) {
     features = parseElements(elements);
     source = src;
   } catch (err) {
-    console.warn('Falling back to offline model:', err);
-    Loader.setStatus('OpenStreetMap unreachable — loading offline model…');
-    await nextFrame();
-    features = buildFallback();
-    source = 'fallback';
+    console.warn(`Falling back for ${area.name}:`, err);
+    if (area.id === 'altstadt') {
+      Loader.setStatus('OpenStreetMap unreachable — loading offline model…');
+      await nextFrame();
+      features = buildFallback();
+      source = 'fallback';
+    } else {
+      features = emptyFeatures();
+      source = 'error';
+    }
   }
 
   Loader.setProgress(0.68);
-  Loader.setStatus('Constructing the 3D city…');
+  Loader.setStatus(`Constructing ${area.name} in 3D…`);
   await nextFrame();
 
   const { world, layers, stats, pickables } = buildCity(features);
@@ -62,24 +88,38 @@ async function loadCity(force) {
   ui.setLayers(layers);
   ui.setStats(stats);
 
-  if (source === 'live') {
-    ui.setSource('Live · OpenStreetMap', `Central Bremen · ${areaKm}`);
-  } else if (source === 'cache') {
-    ui.setSource('Cached · OpenStreetMap', `Central Bremen · ${areaKm}`);
-  } else {
-    ui.setSource(
-      'Demo model · offline',
-      "Stylised offline model — couldn't reach OpenStreetMap. Try “Reload live data” when connected.",
-    );
-  }
+  // Frame the newly re-centred world with its Overview viewpoint.
+  const overview = area.presets[0];
+  viewer.setView(overview.pos, overview.target);
+
+  applySource(source, area);
 
   Loader.setProgress(0.92);
   await nextFrame();
   await Loader.hide();
   ui.setReloadEnabled(true);
+  loading = false;
 }
 
-loadCity(false);
+function applySource(source, area) {
+  if (source === 'live') {
+    ui.setSource('Live · OpenStreetMap', `${area.name} · ${areaKm(area)}`);
+  } else if (source === 'cache') {
+    ui.setSource('Cached · OpenStreetMap', `${area.name} · ${areaKm(area)}`);
+  } else if (source === 'fallback') {
+    ui.setSource(
+      'Demo model · offline',
+      "Stylised offline model — couldn't reach OpenStreetMap. Try “Reload live data” when connected.",
+    );
+  } else {
+    ui.setSource(
+      'Offline · no data',
+      `Couldn't reach OpenStreetMap for ${area.name}. Connect to the internet and press “Reload live data”.`,
+    );
+  }
+}
+
+loadArea(DEFAULT_AREA_ID, false);
 
 // Expose for quick console debugging.
-window.__bremen = { viewer, ui, picker };
+window.__bremen = { viewer, ui, picker, loadArea };

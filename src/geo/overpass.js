@@ -1,10 +1,10 @@
-import { BBOX, OVERPASS_ENDPOINTS, CACHE_KEY, CACHE_TTL_MS } from '../config.js';
+import { OVERPASS_ENDPOINTS, CACHE_PREFIX, CACHE_TTL_MS } from '../config.js';
 
 // ---------------------------------------------------------------------------
 // Query
 // ---------------------------------------------------------------------------
-function buildQuery() {
-  const bbox = `${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east}`;
+function buildQuery(box) {
+  const bbox = `${box.south},${box.west},${box.north},${box.east}`;
   // `out geom` returns node coordinates inline for ways and relation members,
   // so we never have to resolve node references ourselves.
   return `[out:json][timeout:90];
@@ -32,16 +32,17 @@ out body geom;`;
 // ---------------------------------------------------------------------------
 // Fetch with endpoint fallback + local cache
 // ---------------------------------------------------------------------------
-export async function loadOSM({ onStatus = () => {}, force = false } = {}) {
+export async function loadOSM({ area, onStatus = () => {}, force = false }) {
+  const cacheKey = CACHE_PREFIX + area.id;
   if (!force) {
-    const cached = readCache();
+    const cached = readCache(cacheKey);
     if (cached) {
-      onStatus('Loaded Bremen from local cache');
+      onStatus(`Loaded ${area.name} from local cache`);
       return { elements: cached, source: 'cache' };
     }
   }
 
-  const query = buildQuery();
+  const query = buildQuery(area.bbox);
   let lastError = null;
 
   for (let i = 0; i < OVERPASS_ENDPOINTS.length; i++) {
@@ -63,7 +64,7 @@ export async function loadOSM({ onStatus = () => {}, force = false } = {}) {
       const elements = json.elements || [];
       if (elements.length === 0) throw new Error('empty response');
       onStatus(`Received ${elements.length.toLocaleString()} map elements`);
-      writeCache(elements);
+      writeCache(cacheKey, elements);
       return { elements, source: 'live' };
     } catch (err) {
       lastError = err;
@@ -74,9 +75,9 @@ export async function loadOSM({ onStatus = () => {}, force = false } = {}) {
   throw lastError || new Error('All Overpass endpoints failed');
 }
 
-function readCache() {
+function readCache(cacheKey) {
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
+    const raw = localStorage.getItem(cacheKey);
     if (!raw) return null;
     const { ts, elements } = JSON.parse(raw);
     if (!elements || Date.now() - ts > CACHE_TTL_MS) return null;
@@ -86,9 +87,9 @@ function readCache() {
   }
 }
 
-function writeCache(elements) {
+function writeCache(cacheKey, elements) {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), elements }));
+    localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), elements }));
   } catch {
     // localStorage may be full or unavailable — non-fatal.
   }

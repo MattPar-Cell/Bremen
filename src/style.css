@@ -193,6 +193,13 @@ a { color: var(--accent-2); }
 }
 .chip:hover { background: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.22); }
 .chip:active { transform: translateY(1px); }
+.chip--area.active {
+  background: linear-gradient(135deg, var(--accent), #9d0208);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+.chip--area.active:hover { background: linear-gradient(135deg, var(--accent), #9d0208); }
 
 .toggles { display: flex; flex-direction: column; gap: 6px; }
 .switch {

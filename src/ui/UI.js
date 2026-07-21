@@ -1,4 +1,4 @@
-import { PRESETS, COLORS } from '../config.js';
+import { COLORS } from '../config.js';
 
 const LAYER_DEFS = [
   { key: 'buildings', label: 'Buildings', color: COLORS.house },
@@ -11,13 +11,15 @@ const LAYER_DEFS = [
 const hex = (n) => '#' + n.toString(16).padStart(6, '0');
 
 export class UI {
-  constructor(viewer, { onReload, onInfoClose } = {}) {
+  constructor(viewer, { onReload, onInfoClose, onAreaChange, areas = [], currentAreaId } = {}) {
     this.viewer = viewer;
     this.onReload = onReload || (() => {});
     this.onInfoClose = onInfoClose || (() => {});
+    this.onAreaChange = onAreaChange || (() => {});
+
     this.layers = {};
 
-    this._buildPresets();
+    this._buildAreas(areas, currentAreaId);
     this._buildLayers();
     this._wireTime();
     this._wireOptions();
@@ -27,10 +29,37 @@ export class UI {
     this._wireHint();
   }
 
+  // ---- areas (boroughs) ------------------------------------------------
+  _buildAreas(areas, currentAreaId) {
+    const host = document.getElementById('areas');
+    if (!host) return;
+    this._areaButtons = {};
+    for (const a of areas) {
+      const b = document.createElement('button');
+      b.className = 'chip chip--area' + (a.id === currentAreaId ? ' active' : '');
+      b.textContent = a.name;
+      b.title = a.blurb || a.name;
+      b.addEventListener('click', () => {
+        if (b.classList.contains('active')) return;
+        this.onAreaChange(a.id);
+      });
+      host.appendChild(b);
+      this._areaButtons[a.id] = b;
+    }
+  }
+
+  setActiveArea(id) {
+    if (!this._areaButtons) return;
+    for (const [aid, btn] of Object.entries(this._areaButtons)) {
+      btn.classList.toggle('active', aid === id);
+    }
+  }
+
   // ---- presets ---------------------------------------------------------
-  _buildPresets() {
+  setPresets(presets) {
     const host = document.getElementById('presets');
-    for (const p of PRESETS) {
+    host.innerHTML = '';
+    for (const p of presets) {
       const b = document.createElement('button');
       b.className = 'chip';
       b.textContent = p.name;
