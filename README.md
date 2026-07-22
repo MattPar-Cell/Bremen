@@ -6,6 +6,8 @@ browser with [Three.js](https://threejs.org/). It builds the city from **real
 footprints extruded to their real heights, the Weser river, parks and the
 Wallanlagen green ring, streets and railways, and thousands of trees.
 
+### 🔗 Live: https://mattpar-cell.github.io/Blackhole/
+
 ![Bremen 3D — overview](docs/preview.png)
 
 > Data © OpenStreetMap contributors. If OpenStreetMap can't be reached, the app
