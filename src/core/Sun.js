@@ -8,6 +8,10 @@ export class Sun {
   constructor(scene) {
     this.dir = new THREE.Vector3(0, 1, 0);
     this.horizonColor = new THREE.Color(0x9fc4e8);
+    // The shadow camera covers only a limited area, so it tracks this focus
+    // point (the camera target) — that keeps shadows sharp wherever the user is
+    // looking across the whole-city model, not just near the origin.
+    this.focus = new THREE.Vector3(0, 0, 0);
 
     this.sky = new Sky();
     this.sky.scale.setScalar(20000);
@@ -61,14 +65,25 @@ export class Sun {
     const day = Math.sin(el);
     const warm = THREE.MathUtils.clamp(1 - el / THREE.MathUtils.degToRad(30), 0, 1);
 
-    this.light.position.copy(this.dir).multiplyScalar(1800);
-    this.light.target.position.set(0, 0, 0);
     this.light.intensity = 0.3 + day * 1.35;
     this.light.color.copy(this._warm).lerp(this._white, 1 - warm);
+    this._place();
 
     this.hemi.intensity = 0.3 + day * 0.5;
     this.ambient.intensity = 0.15 + day * 0.2;
 
     this.horizonColor.copy(this._skyBlue).lerp(this._dusk, warm * 0.8);
+  }
+
+  // Point the sun's shadow camera at `center` (world XZ), keeping its direction.
+  follow(center) {
+    if (this.focus.x === center.x && this.focus.z === center.z) return;
+    this.focus.set(center.x, 0, center.z);
+    this._place();
+  }
+
+  _place() {
+    this.light.target.position.copy(this.focus);
+    this.light.position.copy(this.focus).addScaledVector(this.dir, 1800);
   }
 }

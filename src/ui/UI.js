@@ -11,20 +11,22 @@ const LAYER_DEFS = [
 const hex = (n) => '#' + n.toString(16).padStart(6, '0');
 
 export class UI {
-  constructor(viewer, { onReload, onInfoClose, onAreaChange, areas = [], currentAreaId } = {}) {
+  constructor(viewer, opts = {}) {
     this.viewer = viewer;
-    this.onReload = onReload || (() => {});
-    this.onInfoClose = onInfoClose || (() => {});
-    this.onAreaChange = onAreaChange || (() => {});
+    this.onReload = opts.onReload || (() => {});
+    this.onInfoClose = opts.onInfoClose || (() => {});
+    this.onAreaChange = opts.onAreaChange || (() => {});
+    this.onPreset = opts.onPreset || (() => {});
+    this.onLoadCity = opts.onLoadCity || (() => {});
+    this.onReset = opts.onReset || (() => {});
 
-    this.layers = {};
-
-    this._buildAreas(areas, currentAreaId);
+    this._buildAreas(opts.areas || [], opts.currentAreaId);
     this._buildLayers();
     this._wireTime();
     this._wireOptions();
     this._wireInfoCard();
     this._wireReload();
+    this._wireCityButtons();
     this._wirePanelToggle();
     this._wireHint();
   }
@@ -41,19 +43,26 @@ export class UI {
       b.className = 'chip chip--area' + (a.id === currentAreaId ? ' active' : '');
       b.textContent = a.name;
       b.title = a.blurb || a.name;
-      b.addEventListener('click', () => {
-        if (b.classList.contains('active')) return;
-        this.onAreaChange(a.id);
-      });
+      b.addEventListener('click', () => this.onAreaChange(a.id));
       host.appendChild(b);
       this._areaButtons[a.id] = b;
     }
   }
 
-  setActiveArea(id) {
+  // The borough the camera is currently focused on.
+  setFocusArea(id) {
     if (!this._areaButtons) return;
     for (const [aid, btn] of Object.entries(this._areaButtons)) {
       btn.classList.toggle('active', aid === id);
+    }
+  }
+
+  // Boroughs whose data is currently in the scene.
+  setLoadedAreas(ids) {
+    if (!this._areaButtons) return;
+    const set = new Set(ids);
+    for (const [aid, btn] of Object.entries(this._areaButtons)) {
+      btn.classList.toggle('loaded', set.has(aid));
     }
   }
 
@@ -63,9 +72,9 @@ export class UI {
     host.innerHTML = '';
     for (const p of presets) {
       const b = document.createElement('button');
-      b.className = 'chip';
+      b.className = 'chip' + (p.fit ? ' chip--wide' : '');
       b.textContent = p.name;
-      b.addEventListener('click', () => this.viewer.flyTo(p.pos, p.target));
+      b.addEventListener('click', () => this.onPreset(p));
       host.appendChild(b);
     }
   }
@@ -73,7 +82,6 @@ export class UI {
   // ---- layer toggles ---------------------------------------------------
   _buildLayers() {
     const host = document.getElementById('layer-toggles');
-    this._layerInputs = {};
     for (const def of LAYER_DEFS) {
       const label = document.createElement('label');
       label.className = 'switch';
@@ -87,18 +95,9 @@ export class UI {
       text.textContent = def.label;
       label.append(input, dot, text);
       input.addEventListener('change', () => {
-        this.viewer.setLayerVisible(this.layers[def.key], input.checked);
+        this.viewer.setLayerVisible(def.key, input.checked);
       });
       host.appendChild(label);
-      this._layerInputs[def.key] = input;
-    }
-  }
-
-  setLayers(layers) {
-    this.layers = layers;
-    for (const def of LAYER_DEFS) {
-      const input = this._layerInputs[def.key];
-      if (input && layers[def.key]) layers[def.key].visible = input.checked;
     }
   }
 
@@ -136,6 +135,14 @@ export class UI {
 
   setReloadEnabled(on) {
     if (this._reloadBtn) this._reloadBtn.disabled = !on;
+  }
+
+  // ---- whole-city actions ---------------------------------------------
+  _wireCityButtons() {
+    const load = document.getElementById('load-city');
+    const reset = document.getElementById('reset-city');
+    if (load) load.addEventListener('click', () => this.onLoadCity());
+    if (reset) reset.addEventListener('click', () => this.onReset());
   }
 
   // ---- info card -------------------------------------------------------

@@ -7,12 +7,11 @@ import { buildRoads } from './roads.js';
 import { buildTrees } from './trees.js';
 import { projectRing, ribbonGeometry } from './geometryUtils.js';
 
-// Turn a parsed feature set into a single world THREE.Group with named,
-// toggleable sub-layers, and report stats + the meshes that are clickable.
+// Turn one borough's parsed feature set into per-layer THREE.Groups (not yet
+// parented), plus stats and the clickable building meshes. The caller adds the
+// groups into the viewer's shared layer roots so many boroughs combine into one
+// continuous city.
 export function buildCity(features) {
-  const world = new THREE.Group();
-  world.name = 'city';
-
   const { green, water } = buildSurfaces(features.areas);
   addWaterways(water, features.waterways);
 
@@ -20,8 +19,6 @@ export function buildCity(features) {
   const trees = buildTrees(features.trees);
   const { group: buildingsGroup, meshes: buildingMeshes, count: buildingCount } =
     buildBuildings(features.buildings);
-
-  world.add(water, green, roads, trees, buildingsGroup);
 
   const layers = { buildings: buildingsGroup, green, water, roads, trees };
 
@@ -33,7 +30,7 @@ export function buildCity(features) {
     trees: features.trees.length,
   };
 
-  return { world, layers, stats, pickables: buildingMeshes };
+  return { layers, stats, pickables: buildingMeshes };
 }
 
 // River/canal centre-lines rendered as translucent blue ribbons, added to the

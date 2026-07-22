@@ -16,10 +16,14 @@ Wallanlagen green ring, streets and railways, and thousands of trees.
 
 ## Features
 
-- **All 23 boroughs of Bremen** — switch between every official *Stadtteil*,
-  from the historic **City centre** (Mitte) to **Schwachhausen**, **Neustadt**,
-  **Vegesack**, **Blumenthal**, **Oberneuland**, **Horn-Lehe** and the rest.
-  Each is fetched as its own patch of real map data and cached separately.
+- **All 23 boroughs of Bremen, connected** — every official *Stadtteil*, from
+  the historic **City centre** (Mitte) to **Schwachhausen**, **Vegesack**,
+  **Blumenthal**, **Oberneuland**, **Horn-Lehe** and the rest. Boroughs load
+  into **one shared, real-world coordinate space**, so each sits at its true
+  geographic position and they join up into a single continuous city. Click
+  boroughs to add them one at a time, or hit **"Load whole city"** to assemble
+  all 23. Overlapping downloads are de-duplicated by OSM id so nothing is drawn
+  twice; each borough is cached separately.
 - **Real geometry from OpenStreetMap** — buildings are extruded to their tagged
   `height` / `building:levels`, or to sensible defaults per building type, and
   tinted in Bremen's brick-and-sandstone palette.
@@ -114,8 +118,9 @@ just a centre, a bounding box and a list of camera viewpoints:
 
 Add an object to load any other neighbourhood (or a different city entirely).
 The larger the bounding box, the more the first download and render will cost.
-Switching areas re-centres the projection and reloads that area's data through
-the same pipeline; each area is cached separately in the browser.
+All areas share one global projection origin, so any borough you add lands at
+its true position relative to the others; loads are de-duplicated by OSM id and
+cached separately in the browser.
 
 ## Tech
 

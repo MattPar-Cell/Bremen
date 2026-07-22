@@ -3,14 +3,17 @@ import { MapControls } from 'three/addons/controls/MapControls.js';
 import { Sun } from './Sun.js';
 import { COLORS } from '../config.js';
 
+const LAYER_KEYS = ['water', 'green', 'roads', 'trees', 'buildings'];
+
 // Owns the renderer, camera, controls, sky/lighting, ground and the render
-// loop. The city world group is swapped in via setWorld().
+// loop. Boroughs are accumulated into shared per-layer roots so the whole city
+// can be assembled from many patches in one continuous coordinate space.
 export class Viewer {
   constructor(canvas) {
     this.canvas = canvas;
     this.scene = new THREE.Scene();
-    this.world = null;
     this.cityMeshes = [];
+    this.pickables = [];
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -24,11 +27,12 @@ export class Viewer {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.5;
 
+    // Far plane large enough to see across the whole city (~15 km corner).
     this.camera = new THREE.PerspectiveCamera(
       55,
       window.innerWidth / window.innerHeight,
       1,
-      14000,
+      60000,
     );
     this.camera.position.set(520, 620, 720);
 
@@ -38,18 +42,29 @@ export class Viewer {
     this.controls.screenSpacePanning = false;
     this.controls.maxPolarAngle = Math.PI * 0.495; // stay above the horizon
     this.controls.minDistance = 25;
-    this.controls.maxDistance = 4500;
+    this.controls.maxDistance = 26000; // zoom out far enough for the city view
     this.controls.autoRotateSpeed = 0.45;
     this.controls.target.set(0, 0, 0);
 
     this.sun = new Sun(this.scene);
 
-    this.fog = new THREE.FogExp2(this.sun.horizonColor.getHex(), 0.00018);
+    // Gentler fog so distant boroughs stay visible; still adds depth up close.
+    this.fog = new THREE.FogExp2(this.sun.horizonColor.getHex(), 0.00006);
     this.scene.fog = this.fog;
     this.scene.background = this.sun.horizonColor.clone();
 
     this.ground = this._makeGround();
     this.scene.add(this.ground);
+
+    // Persistent per-layer roots; each borough adds its meshes into these so a
+    // single toggle controls that layer city-wide.
+    this.layerRoots = {};
+    for (const key of LAYER_KEYS) {
+      const g = new THREE.Group();
+      g.name = key;
+      this.scene.add(g);
+      this.layerRoots[key] = g;
+    }
 
     this._fly = null;
     this._clock = new THREE.Clock();
@@ -60,7 +75,7 @@ export class Viewer {
   }
 
   _makeGround() {
-    const geo = new THREE.CircleGeometry(6500, 72);
+    const geo = new THREE.CircleGeometry(30000, 96);
     geo.rotateX(-Math.PI / 2);
     const mat = new THREE.MeshLambertMaterial({ color: COLORS.ground });
     const mesh = new THREE.Mesh(geo, mat);
@@ -70,29 +85,70 @@ export class Viewer {
     return mesh;
   }
 
-  setWorld(group) {
-    if (this.world) {
-      this.scene.remove(this.world);
-      this._disposeGroup(this.world);
+  // ---- city content ----------------------------------------------------
+  // Add one borough's built layers into the shared roots. `layers` maps each
+  // layer key to a THREE.Group; `pickables` are its clickable building meshes.
+  addCityLayers(layers, pickables) {
+    for (const key of LAYER_KEYS) {
+      const group = layers[key];
+      if (!group) continue;
+      this.layerRoots[key].add(group);
+      group.traverse((o) => {
+        if (o.isMesh) this.cityMeshes.push(o);
+      });
     }
-    this.world = group;
-    this.scene.add(group);
+    if (pickables) this.pickables.push(...pickables.filter((m) => m.userData.pickable));
+    // reflect current display options on the freshly added meshes
+    this._applyDisplayToNew();
+  }
+
+  // Remove a specific borough's layer groups (kept by the caller) from the roots.
+  removeGroups(groups) {
+    for (const key of LAYER_KEYS) {
+      const g = groups[key];
+      if (!g) continue;
+      this.layerRoots[key].remove(g);
+      this._disposeGroup(g);
+    }
+    // rebuild the mesh/pickable caches from what remains
+    this._rebuildCaches();
+  }
+
+  clearCity() {
+    for (const key of LAYER_KEYS) {
+      const root = this.layerRoots[key];
+      for (const child of [...root.children]) {
+        root.remove(child);
+        this._disposeGroup(child);
+      }
+    }
     this.cityMeshes = [];
-    group.traverse((o) => {
-      if (o.isMesh) this.cityMeshes.push(o);
-    });
+    this.pickables = [];
+  }
+
+  _rebuildCaches() {
+    this.cityMeshes = [];
+    this.pickables = [];
+    for (const key of LAYER_KEYS) {
+      this.layerRoots[key].traverse((o) => {
+        if (o.isMesh) {
+          this.cityMeshes.push(o);
+          if (o.userData.pickable) this.pickables.push(o);
+        }
+      });
+    }
   }
 
   // ---- display options -------------------------------------------------
-  setLayerVisible(layer, visible) {
-    if (layer) layer.visible = visible;
+  setLayerVisible(key, visible) {
+    const root = this.layerRoots[key];
+    if (root) root.visible = visible;
   }
 
   setShadows(on) {
+    this._shadows = on;
     this.renderer.shadowMap.enabled = on;
-    for (const m of this.cityMeshes) {
-      if (m.material) m.material.needsUpdate = true;
-    }
+    for (const m of this.cityMeshes) if (m.material) m.material.needsUpdate = true;
     if (this.ground.material) this.ground.material.needsUpdate = true;
   }
 
@@ -101,9 +157,14 @@ export class Viewer {
   }
 
   setWireframe(on) {
+    this._wire = on;
     for (const m of this.cityMeshes) {
       if (m.material && 'wireframe' in m.material) m.material.wireframe = on;
     }
+  }
+
+  _applyDisplayToNew() {
+    if (this._wire) this.setWireframe(true);
   }
 
   setAutoRotate(on) {
@@ -118,7 +179,6 @@ export class Viewer {
   }
 
   // ---- camera moves ----------------------------------------------------
-  // Snap the camera instantly (used when the world re-centres on a new area).
   setView(pos, target) {
     this._fly = null;
     this.camera.position.set(...pos);
@@ -126,7 +186,7 @@ export class Viewer {
     this.controls.update();
   }
 
-  flyTo(pos, target, dur = 1.1) {
+  flyTo(pos, target, dur = 1.2) {
     this._fly = {
       fromPos: this.camera.position.clone(),
       toPos: new THREE.Vector3(...pos),
@@ -135,6 +195,12 @@ export class Viewer {
       t: 0,
       dur,
     };
+  }
+
+  // Frame a circular area (world XZ centre + radius in metres) from an angle.
+  frameArea(cx, cz, radius, dur = 1.4) {
+    const r = Math.max(radius, 120);
+    this.flyTo([cx + r * 0.35, r * 0.85, cz + r * 0.95], [cx, 0, cz], dur);
   }
 
   // ---- internals -------------------------------------------------------
@@ -151,6 +217,8 @@ export class Viewer {
     }
 
     this.controls.update();
+    // Keep the shadow frustum centred on wherever we're looking.
+    this.sun.follow(this.controls.target);
     this.renderer.render(this.scene, this.camera);
   }
 
